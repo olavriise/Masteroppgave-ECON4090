@@ -1,0 +1,335 @@
+//Åpne data 
+use "G:\ISF10362_Tilknytningsformer\Registerstudier\Olav\personfil_yrker_0418.dta"
+
+//Fjerne punktum i næringskoder
+replace nace_bed = subinstr(nace_bed, ".", "",.)
+
+//Lage outsourcing-dummy. Setter den først lik 0 og fyller den etterpå, har lagt til vaktmester (5163) i andre kombinerte tjenester tilknyttet eiendomsdrift (81109), sjekk om det vikrer riktig. Legger også til eiendomsforvaltning (70.321) for vaktmestere, og 75140 for vaktmestere
+generate outsourcet = 0
+replace outsourcet = 1 if yrk4 == "5122" & nace_bed == "55510" | yrk4 == "5122" & nace_bed == "56290" | yrk4 == "5123" & nace_bed == "55510" | yrk4 == "5123" & nace_bed == "56290" | yrk4 == "5163" & nace_bed == "70322" | yrk4 == "5163" & nace_bed == "70321"| yrk4 == "5163" & nace_bed == "81101" | yrk4 == "5163" & nace_bed == "81109" | yrk4 == "5163" & nace_bed == "75140"| yrk4 == "5164" & nace_bed == "74600" | yrk4 == "5164" & nace_bed == "80100" | yrk4 == "5164" & nace_bed == "80200" | yrk4 == "9132" & nace_bed == "74700" | yrk4 == "9132" & nace_bed == "75140" | yrk4 == "9132" & nace_bed == "81210" | yrk4 == "9132" & nace_bed == "81109"  | yrk4 == "9133" & nace_bed == "55510" | yrk4 == "9133" & nace_bed == "56290" | yrk4 == "9152" & nace_bed == "74600" | yrk4 == "9152" & nace_bed == "80100" | yrk4 == "9152" & nace_bed == "80200"
+
+table outsourcet
+
+//Teller antall unike personer
+generate long order = _n
+by lopenr_person (order), sort: generate y = _n == 1
+sort order
+replace y = sum(y)
+drop order
+sum y
+//Totalt 587 872 unike personer i datasettet 
+
+//Teller antall unike bedrifter
+generate long order = _n
+by lopenr_bedrift (order), sort: generate z = _n == 1
+sort order
+replace z = sum(z)
+drop order
+sum z
+//Totalt 65 336 bedrifter
+
+//Teller antall foretak
+generate long order = _n
+by lopenr_foretak (order), sort: generate w = _n == 1
+sort order
+replace w = sum(w)
+drop order
+sum w
+//Totalt 50 121 foretak
+
+//Deler opp i lønnsdesiler
+xtile timelonn_10 = timelonn, nq(10)
+
+//Undersøker lønn i de ulike desilene for å se hvilke som skal fjernes
+sum timelonn if timelonn_10 == 1
+sum timelonn if timelonn_10 == 2
+sum timelonn if timelonn_10 == 3
+sum timelonn if timelonn_10 == 9
+sum timelonn if timelonn_10 == 10
+//Snittlønn i timen for de i nederste desil er 26.46, andre desil er 74.68, tredje er 112.57, niende er 233.91, tiende er 369.31
+
+//Lager utregningsvariabel
+gen x = 1
+//Undersøker hvor mange som er registrert med timelønn over og under en gitt sum
+sum x if timelonn > 400
+//56 259 personer
+sum x if timelonn > 600
+//12 151 personer
+sum x if timelonn < 100
+// 464 134 personer
+sum x if timelonn < 70
+// 304 306 personer
+
+//Lager log timelonn
+gen ln_lonn = log(timelonn)
+
+//Lager dummy for matarbeidere, kokker og kjøkkenassistenter
+gen matarbeider = 0
+replace matarbeider = 1 if yrk4 == "5122" | yrk4 == "9133"
+
+//Lager dummy for sikkerhetsarbeidere
+gen sikkerhet = 0
+replace sikkerhet = 1 if yrk4 == "5164" | yrk4 == "9152"
+
+//Destring aar
+gen aar2 = aar
+destring aar2, replace ignore(b)
+
+//Lager lavtutdannet-dummy for de med ungdomsskole som høyest fullført utdanning
+gen lavutdannet = 0
+replace lavutdannet = 1 if utdan1 == "0" | utdan1 == "1" | utdan1 == "2"
+
+//Sammenligner lønn for lavutdannet og de med mer utdanning
+mean timelonn if lavutdannet == 1
+mean timelonn if lavutdannet == 0
+//Snitt-timelønn for lavutdannede er 154.611 i timen, for de med mer utdanning er snittlønn 173.88
+
+//Undersøker om de outsourcede skiller ser fra ikke-outsourcede i enkelte karakteristikker
+tab innvandrer if outsourcet == 1
+tab innvandrer if outsourcet == 0
+tab innvandrer
+//Blant de outsourcede er 45.69% innvandrere, mens blant de ikke-outsourcede er kun 31.03 prosent innvandrere.
+//PS: før jeg inkluderte flere næringer var 56.2% av outsourcede innvandrere, og 30.6% innvandrere blant ikke-outsourcede
+
+//Andel kvinner i outsourcet og ikke-outsourcet
+tab kvinne if outsourcet == 1
+tab kvinne if outsourcet == 0
+tab kvinne
+//59.99% av de outsourcede er kvinner, 57.98% av de ikke-outsourcede er kvinner. Altså ikke nevneverdige kjønnsforskjeller.
+
+//Undersøker alder for outsourcet og ikke-outsourcet
+mean alder
+mean alder if outsourcet == 1
+mean alder if outsourcet == 0
+//Snittalder for outsourcede er 39.52, snittalder for ikke-outsourcede er 37.42. Små forskjeller i snittalder.
+
+//Undersøker aldersfordeling
+tab alder if outsourcet == 1
+tab alder if outsourcet == 0
+// 26.78% av de outsourcede er under 30 år, mens hele 39.43% av de ikke-outsourcede er under 30 år. Kanskje fordi mange småjobber/sommerjobber som utføres av unge ofte ikke er outsourcet, og derfor er det en så høy andel unge. Eks: badevakt, kiosk på Tusenfryd etc.
+
+//Undersøker utdanning 
+tab utdan1
+tab utdan1 if outsourcet == 1
+tab utdan1 if outsourcet == 0
+//Blant de outsourcede er det 42.81% som har ungdomsskole som høyeste fullførte utdanning, blant ikke-outsourcede er tallet 38.19%. 
+//34.84% av de outsourcede har videregående (inkludert påbygg) som høyeste fullførte utdanning, tallet for ikke-outsourcede er 38.37%. 
+//12.87% av de outsourcede har fullført mer utdanning enn vgs, tallet for ikke-outosurcede er 13.5%.
+//Det største skillet er altså at en høyere andel av de outsourcede har ungdomsskole som høyeste fullførte utdanning, sammenlignet med de som ikke er outosurcet.
+
+//Botid for innvandrere som er outsourcet og de som ikke er outsourcet
+mean botid if outsourcet == 1 & innvandrer == 1
+mean botid if outsourcet == 0 & innvandrer == 1
+//Gjennomsnittlig botid for outsourcede innvandrere er 8.67 år, mens for innvandrere som ikke er outsourcet er snitt-botid 9.18 år
+//PS: før jeg inkluderte flere outsourcingnæringer var snittbotiden for innvandrere 7.815 år og 9.45 år for ikke-outosurcede
+
+//Gjør deskriptiv statistikk for enkeltyrker, viktig å skille mellom yrker
+tab innvandrer if outsourcet == 1 & yrk4 == "9132"
+tab innvandrer if outsourcet == 0 & yrk4 == "9132"
+//59.5% innvandrere blant outsourcede renholdere, 40.1% blant ikke-outsourcede
+
+tab innvandrer if outsourcet == 1 & yrk4 == "5122"
+tab innvandrer if outsourcet == 0 & yrk4 == "5122"
+// 26.2% innvandrere blant outsourcede kokker, 34.6% blant ikke-outsourcede.
+
+tab innvandrer if outsourcet == 1 & yrk4 == "5163"
+tab innvandrer if outsourcet == 0 & yrk4 == "5163"
+//10.9% innvandrere blant outsourcede vaktmestere, 13.1% blant ikke-outsourcede
+
+tab innvandrer if outsourcet == 1 & yrk4 == "5164"
+tab innvandrer if outsourcet == 0 & yrk4 == "5164"
+//13.8% innvandrere blant outsourcede vektere, 11.3% blant ikke-outsourcede
+
+tab innvandrer if outsourcet == 1 & yrk4 == "9133"
+tab innvandrer if outsourcet == 0 & yrk4 == "9133"
+//44.3% innvandrere blant outsourcede kjøkkenassistenter, 32.7% blant ikke-outsourcede
+
+tab innvandrer if outsourcet == 1 & yrk4 == "9152"
+tab innvandrer if outsourcet == 0 & yrk4 == "9152"
+//25.2% innvandrere blant outsourcede vakter/dørvakter, 16.5% blant ikke-outsourcede
+
+tab kvinne if outsourcet == 1 & yrk4 == "5122"
+tab kvinne if outsourcet == 0 & yrk4 == "5122"
+tab kvinne if outsourcet == 0 & yrk4 == "5122" & restaurant == 0
+//49.1% kvinner blant outsourcede, 53.1% kvinner blant ikke-outsourcede. 64.6% kvinner blant ikke-outsourcede om man fjerner restaurantbransjen. 
+
+tab kvinne if outsourcet == 1 & yrk4 == "5163"
+tab kvinne if outsourcet == 0 & yrk4 == "5163"
+//3.6% kvinner blant outsourcede vaktmestere, 11% blant ikke-outsourcede
+
+tab kvinne if outsourcet == 1 & yrk4 == "5164"
+tab kvinne if outsourcet == 0 & yrk4 == "5164"
+//26.1% kvinner blant outsourcede vektere, 19.6% blant ikke-outsourcede
+
+tab kvinne if outsourcet == 1 & yrk4 == "9132"
+tab kvinne if outsourcet == 0 & yrk4 == "9132"
+//73% kvinner blant outsourcede renholdere, 83% blant ikke-outsourcede
+
+tab kvinne if outsourcet == 1 & yrk4 == "9133"
+tab kvinne if outsourcet == 0 & yrk4 == "9133" & restaurant == 0
+//Minimale forskjeller
+
+tab kvinne if outsourcet == 1 & yrk4 == "9133"
+tab kvinne if outsourcet == 0 & yrk4 == "9133"
+//11% kvinner blant outsourcede vakter/dørvakter, 39% blant ikke-outsourcede
+
+//Undersøker fordelingen i lønnsdesilene for de ulike yrkesgruppene, ser på matarbeidere først
+tab timelonn_10 if yrk4 == "5122"
+tab timelonn_10 if yrk4 == "5123"
+tab timelonn_10 if yrk4 == "9133"
+//Assistenter (9133) har uproporsjonalt høy andel i de nederste lønnsdesilene, gir mening siden de er ufaglærte. Kokker (5122) har en uproporsjonal liten andel blant de lavtlønte, eks: 7.11% av kokkene er i nederste desil, 37.33 i de fire nederste. Gir mening siden de har flere faglærte.
+
+tab timelonn_10 if yrk4 == "9132"
+//Renholdere har uproporsjonalt få i de nederste og øverste desilene.
+
+tab timelonn_10 if yrk4 == "5164"
+//Vektere har få i de nederste desilene, 41.76% av vekterne er i de to øverste desilene. Logisk mtp. at vektere har mer kvelds- natt- og helgearbeid enn de andre yrkene, pluss risikotillegg
+
+tab timelonn_10 if yrk4 == "5163"
+//Få vaktmestere i de nedre desilene, 33.31% i de to øverste, 48.36% i de tre øverste
+
+tab outsourcet if yrk4 == "5123"
+//0.65% av servitørene er outsourcet, dropper servitører
+
+//Installerer grstyle
+ssc install grstyle, replace
+ssc install palettes, replace
+ssc install colrspace, replace
+
+//Endrer visuell profil på graf
+grstyle init
+grstyle set plain, horizontal grid
+grstyle set color ptol rainbow, n(8) reverse
+
+//Line plot for andel outsourcede i alle yrkene hver for seg
+bys aar2 yrk4: egen rate = mean(outsourcet)
+tw (line rate aar2 if yrk4 == "5122", lp(dash)) (line rate aar2 if yrk4 == "9133", lp(dash_dot)) (line rate aar2 if yrk4 == "5163", lp(longdash_dot)) (line rate aar2 if yrk4 == "5164", lp(longdash)) (line rate aar2 if yrk4 == "9152", lp(shortdash)) (line rate aar2 if yrk4 == "9132", lp(shortdash_dot)), ytitle(Andel outsourcede innen yrket)  xtitle (År) legend(on order(1 "Kokker" 2 "Kjøkkenassistenter" 3 "Vaktmestere" 4 "Vektere" 5 "Vakt og dørvakt" 6 "Renholdsarbeider") rows(3))
+
+drop rate
+
+//Line plot for gjennomsnittlig timelønn, for outsourcede
+bys aar2 yrk4: egen rate = mean(timelonn) if outsourcet == 1
+tw (line rate aar2 if yrk4 == "5122", lp(dash)) (line rate aar2 if yrk4 == "9133", lp(dash_dot)) (line rate aar2 if yrk4 == "5163", lp(longdash_dot)) (line rate aar2 if yrk4 == "5164", lp(longdash)) (line rate aar2 if yrk4 == "9152", lp(shortdash)) (line rate aar2 if yrk4 == "9132", lp(shortdash_dot)), yscale(r(87 300)) ylabel(100 150 200 250 300) ytitle(Gjennomsnittlig timelønn for outsourcede)  xtitle (År) legend(on order(1 "Kokker" 2 "Assistenter" 3 "Vaktmestere" 4 "Vektere" 5 "Vakt og dørvakt" 6 "Renholdsarbeider") rows(3))
+
+drop rate
+
+//Line plot for gjennomsnittlig timelønn, for ikke-outsourcede
+bys aar2 yrk4: egen rate = mean(timelonn) if outsourcet == 0
+tw (line rate aar2 if yrk4 == "5122", lp(dash)) (line rate aar2 if yrk4 == "9133", lp(dash_dot)) (line rate aar2 if yrk4 == "5163", lp(longdash_dot)) (line rate aar2 if yrk4 == "5164", lp(longdash)) (line rate aar2 if yrk4 == "9152", lp(shortdash)) (line rate aar2 if yrk4 == "9132", lp(shortdash_dot)), yscale(r(87 300)) ylabel(100 150 200 250 300) ytitle(Gjennomsnittlig timelønn for ikke-outsourcede)  xtitle (År) legend(on order(1 "Kokker" 2 "Assistenter" 3 "Vaktmestere" 4 "Vektere" 5 "Vakt og dørvakt" 6 "Renholdsarbeider") rows(3))
+
+drop rate
+
+//Lager dummy for kokker som jobber i restaurant, på kafé, gatekjøkken o.l.
+gen restaurant = 0
+replace restaurant = 1 if nace_bed == "55101" | nace_bed == "55102" | nace_bed == "55301" | nace_bed == "55302" | nace_bed == "56101" | nace_bed == "56102"
+
+//Lineplot for gjennomsnittlig timelønn, for ikke-outsourcede, utelukket kokker og assistenter i restauranter
+bys aar2 yrk4: egen rate = mean(timelonn) if outsourcet == 0
+bys aar2 yrk4: egen rate2 = mean(timelonn) if outsourcet == 0 & restaurant == 0
+tw (line rate2 aar2 if yrk4 == "5122", lp(dash)) (line rate2 aar2 if yrk4 == "9133", lp(dash_dot)) (line rate aar2 if yrk4 == "5163", lp(longdash_dot)) (line rate aar2 if yrk4 == "5164", lp(longdash)) (line rate aar2 if yrk4 == "9152", lp(shortdash)) (line rate aar2 if yrk4 == "9132", lp(shortdash_dot)), yscale(r(87 300)) ylabel(100 150 200 250 300) ytitle(Gjennomsnittlig timelønn for ikke-outsourcede)  xtitle (År) legend(on order(1 "Kokker" 2 "Assistenter" 3 "Vaktmestere" 4 "Vektere" 5 "Vakt og dørvakt" 6 "Renholdsarbeider") rows(3))
+drop rate
+drop rate2
+
+//Lager lineplot over antall outsourcede for hvert yrkene
+bys aar2 yrk4: egen rate = sum(x) if outsourcet == 1
+tw (line rate aar2 if yrk4 == "5122", lp(dash)) (line rate aar2 if yrk4 == "9133", lp(dash_dot)) (line rate aar2 if yrk4 == "5163", lp(longdash_dot)) (line rate aar2 if yrk4 == "5164", lp(longdash)) (line rate aar2 if yrk4 == "9152", lp(shortdash)) (line rate aar2 if yrk4 == "9132", lp(shortdash_dot)), ytitle(Antall innen yrket)  xtitle (År) legend(on order(1 "Kokker" 2 "Assistenter" 3 "Vaktmestere" 4 "Vektere" 5 "Vakt og dørvakt" 6 "Renholdsarbeider") rows(3))
+drop rate
+
+//Lager lineplot over antall personer innen hvert yrke
+bys aar2 yrk4: egen rate = sum(x)
+tw (line rate aar2 if yrk4 == "5122", lp(dash)) (line rate aar2 if yrk4 == "9133", lp(dash_dot)) (line rate aar2 if yrk4 == "5163", lp(longdash_dot)) (line rate aar2 if yrk4 == "5164", lp(longdash)) (line rate aar2 if yrk4 == "9152", lp(shortdash)) (line rate aar2 if yrk4 == "9132", lp(shortdash_dot)), ytitle(Antall personer innen yrket)  xtitle (År) legend(on order(1 "Kokker" 2 "Assistenter" 3 "Vaktmestere" 4 "Vektere" 5 "Vakt og dørvakt" 6 "Renholdsarbeider") rows(3))
+drop rate
+
+//Lager variabel med énsiffer-næringskoder
+gen nace1 = substr(nace_bed, 1, 1)
+
+//Lager dummy for outsourcing-"event", lik 1 hvis personen går fra å være direkte ansatt til å være outsourcet. Husk å destringe aar22 først, må sortere på løpenr og år først.
+sort lopenr_person aar
+gen outevent = 0
+replace outevent = 1 if outsourcet[_n-1]==0 & outsourcet==1 & lopenr_person[_n-1]==lopenr_person & aar2[_n-1]==(aar2-1)
+// 21 699 skifter fra ikke-outsourcet i år t-1 til outsourcet i år t
+tabulate aar if outevent == 1
+
+
+//Trimmer datasettet, lager dummier 
+gen lavlonn = 0
+replace lavlonn = 1 if timelonn < 40
+
+gen høylonn = 0
+replace høylonn = 1 if timelonn > 800
+
+gen normallonn = 0
+replace normallonn = 1 if høylonn == 0 & lavlonn == 0
+
+gen litejobb = 0
+replace litejobb = 1 if timer < 6 | mean_timer < 6
+
+gen myejobb = 0
+replace myejobb = 1 if timer > 50 & mean_timer > 999999999 | mean_timer > 50 & timer > 999999999 
+
+gen normalmengdejobb = 0
+replace normalmengdejobb = 1 if myejobb == 0 & litejobb == 0
+
+//Lager ny personid-variabel som jeg destringer
+gen personidnum = lopenr_person
+replace personidnum = substr(personidnum, 2, .)
+destring personidnum, replace
+
+//xtset
+xtset personidnum aar2
+xtsum outsourcet
+xttab outsourcet
+xttrans outsourcet
+
+//Person går fra å være vakt til å være vekter
+gen blirvekter = 0
+replace blirvekter = 1 if yrk4[_n-1]== "9152" & yrk4=="5164"& lopenr_person[_n-1]==lopenr_person & aar2[_n-1]==(aar2-1)
+
+
+//Fjerner 4*residual, destringer og kjører regresjon uten outsourcing-dummy
+destring aar, gen(aarnum)
+destring utdan1, gen(utdnum)
+destring yrk4, gen(yrknum)
+gen nace1num = nace1
+destring nace1num, replace ignore("-")
+egen person = group(lopenr_person)
+reg ln_lonn kvinne alder alder2 innvandrer i.yrknum i.aarnum i.utdnum i.nace1num
+predict ulonn, residu
+predict plonn, xb
+br ln_lonn ulonn plonn utd*
+br
+sum ulonn, d
+//std.dev 0.729
+gen okresidual = 1 if ulonn <(.73*4) & ulonn>-(4*.73)
+
+//Regresjon
+reg ln_lonn outsourcet kvinne alder alder2 innvandrer lavutdannet if yrk4 == "5163" & okresidual == 1 & normalmengdejobb == 1 & normallonn == 1
+
+//Table med flere kontrollvariabler 
+lab var lavutdannet "Lavt utdannet"
+lab var alder "Alder"
+lab var alder2 "Alder^2"
+lab var innvandrer "Innvandrer"
+lab var kvinne "Kvinne"
+lab var outsourcet "Outsourcet"
+lab var ln_lonn "ln timelønn"
+
+ssc install estout
+
+eststo: reg ln_lonn outsourcet if yrk4 == "5164" & okresidual == 1 & normalmengdejobb == 1 & normallonn == 1
+eststo: reg ln_lonn outsourcet alder alder2 if yrk4 == "5164" & okresidual == 1 & normalmengdejobb == 1 & normallonn == 1
+eststo: reg ln_lonn outsourcet alder alder2 kvinne if yrk4 == "5164" & okresidual == 1 & normalmengdejobb == 1 & normallonn == 1
+eststo: reg ln_lonn outsourcet alder alder2 kvinne innvandrer lavutdannet if yrk4 == "5164" & okresidual == 1 & normalmengdejobb == 1 & normallonn == 1
+esttab, label 
+esttab, b(3) se(3) nomtitle label 
+
+//Eksportere til stata 
+esttab using "G:\ISF10362_Tilknytningsformer\Registerstudier\Olav\grafer/regresjon1.tex", replace f /// 
+b(3) se(3) nomtitle label ///
+booktabs alignment(D{.}{.}{-1})
+ 
+eststo clear
+
+//Legger til årsdummier og utdanningsdummier
+reg ln_lonn outsourcet kvinne alder alder2 innvandrer lavutdannet i.aarnum if yrk4 == "5164" & okresidual == 1 & normalmengdejobb == 1 & normallonn == 1
+
