@@ -1,10 +1,10 @@
 //Åpne data 
-use "G:\ISF10362_Tilknytningsformer\Registerstudier\Olav\personfil_yrker_0418.dta"
+use "filnavn"
 
 //Fjerne punktum i næringskoder
 replace nace_bed = subinstr(nace_bed, ".", "",.)
 
-//Lage outsourcing-dummy. Setter den først lik 0 og fyller den etterpå, har lagt til vaktmester (5163) i andre kombinerte tjenester tilknyttet eiendomsdrift (81109), sjekk om det vikrer riktig. Legger også til eiendomsforvaltning (70.321) for vaktmestere, og 75140 for vaktmestere
+//Lage outsourcing-dummy. Setter den først lik 0 og fyller den etterpå
 generate outsourcet = 0
 replace outsourcet = 1 if yrk4 == "5122" & nace_bed == "55510" | yrk4 == "5122" & nace_bed == "56290" | yrk4 == "5123" & nace_bed == "55510" | yrk4 == "5123" & nace_bed == "56290" | yrk4 == "5163" & nace_bed == "70322" | yrk4 == "5163" & nace_bed == "70321"| yrk4 == "5163" & nace_bed == "81101" | yrk4 == "5163" & nace_bed == "81109" | yrk4 == "5163" & nace_bed == "75140"| yrk4 == "5164" & nace_bed == "74600" | yrk4 == "5164" & nace_bed == "80100" | yrk4 == "5164" & nace_bed == "80200" | yrk4 == "9132" & nace_bed == "74700" | yrk4 == "9132" & nace_bed == "75140" | yrk4 == "9132" & nace_bed == "81210" | yrk4 == "9132" & nace_bed == "81109"  | yrk4 == "9133" & nace_bed == "55510" | yrk4 == "9133" & nace_bed == "56290" | yrk4 == "9152" & nace_bed == "74600" | yrk4 == "9152" & nace_bed == "80100" | yrk4 == "9152" & nace_bed == "80200"
 
@@ -17,7 +17,7 @@ sort order
 replace y = sum(y)
 drop order
 sum y
-//Totalt 587 872 unike personer i datasettet 
+
 
 //Teller antall unike bedrifter
 generate long order = _n
@@ -26,7 +26,7 @@ sort order
 replace z = sum(z)
 drop order
 sum z
-//Totalt 65 336 bedrifter
+
 
 //Teller antall foretak
 generate long order = _n
@@ -35,7 +35,6 @@ sort order
 replace w = sum(w)
 drop order
 sum w
-//Totalt 50 121 foretak
 
 //Deler opp i lønnsdesiler
 xtile timelonn_10 = timelonn, nq(10)
@@ -50,15 +49,7 @@ sum timelonn if timelonn_10 == 10
 
 //Lager utregningsvariabel
 gen x = 1
-//Undersøker hvor mange som er registrert med timelønn over og under en gitt sum
-sum x if timelonn > 400
-//56 259 personer
-sum x if timelonn > 600
-//12 151 personer
-sum x if timelonn < 100
-// 464 134 personer
-sum x if timelonn < 70
-// 304 306 personer
+
 
 //Lager log timelonn
 gen ln_lonn = log(timelonn)
@@ -79,117 +70,19 @@ destring aar2, replace ignore(b)
 gen lavutdannet = 0
 replace lavutdannet = 1 if utdan1 == "0" | utdan1 == "1" | utdan1 == "2"
 
-//Sammenligner lønn for lavutdannet og de med mer utdanning
-mean timelonn if lavutdannet == 1
-mean timelonn if lavutdannet == 0
-//Snitt-timelønn for lavutdannede er 154.611 i timen, for de med mer utdanning er snittlønn 173.88
-
-//Undersøker om de outsourcede skiller ser fra ikke-outsourcede i enkelte karakteristikker
-tab innvandrer if outsourcet == 1
-tab innvandrer if outsourcet == 0
-tab innvandrer
-//Blant de outsourcede er 45.69% innvandrere, mens blant de ikke-outsourcede er kun 31.03 prosent innvandrere.
-//PS: før jeg inkluderte flere næringer var 56.2% av outsourcede innvandrere, og 30.6% innvandrere blant ikke-outsourcede
-
-//Andel kvinner i outsourcet og ikke-outsourcet
-tab kvinne if outsourcet == 1
-tab kvinne if outsourcet == 0
-tab kvinne
-//59.99% av de outsourcede er kvinner, 57.98% av de ikke-outsourcede er kvinner. Altså ikke nevneverdige kjønnsforskjeller.
-
-//Undersøker alder for outsourcet og ikke-outsourcet
-mean alder
-mean alder if outsourcet == 1
-mean alder if outsourcet == 0
-//Snittalder for outsourcede er 39.52, snittalder for ikke-outsourcede er 37.42. Små forskjeller i snittalder.
-
 //Undersøker aldersfordeling
 tab alder if outsourcet == 1
 tab alder if outsourcet == 0
-// 26.78% av de outsourcede er under 30 år, mens hele 39.43% av de ikke-outsourcede er under 30 år. Kanskje fordi mange småjobber/sommerjobber som utføres av unge ofte ikke er outsourcet, og derfor er det en så høy andel unge. Eks: badevakt, kiosk på Tusenfryd etc.
 
 //Undersøker utdanning 
 tab utdan1
 tab utdan1 if outsourcet == 1
 tab utdan1 if outsourcet == 0
-//Blant de outsourcede er det 42.81% som har ungdomsskole som høyeste fullførte utdanning, blant ikke-outsourcede er tallet 38.19%. 
-//34.84% av de outsourcede har videregående (inkludert påbygg) som høyeste fullførte utdanning, tallet for ikke-outsourcede er 38.37%. 
-//12.87% av de outsourcede har fullført mer utdanning enn vgs, tallet for ikke-outosurcede er 13.5%.
-//Det største skillet er altså at en høyere andel av de outsourcede har ungdomsskole som høyeste fullførte utdanning, sammenlignet med de som ikke er outosurcet.
 
 //Botid for innvandrere som er outsourcet og de som ikke er outsourcet
 mean botid if outsourcet == 1 & innvandrer == 1
 mean botid if outsourcet == 0 & innvandrer == 1
-//Gjennomsnittlig botid for outsourcede innvandrere er 8.67 år, mens for innvandrere som ikke er outsourcet er snitt-botid 9.18 år
-//PS: før jeg inkluderte flere outsourcingnæringer var snittbotiden for innvandrere 7.815 år og 9.45 år for ikke-outosurcede
 
-//Gjør deskriptiv statistikk for enkeltyrker, viktig å skille mellom yrker
-tab innvandrer if outsourcet == 1 & yrk4 == "9132"
-tab innvandrer if outsourcet == 0 & yrk4 == "9132"
-//59.5% innvandrere blant outsourcede renholdere, 40.1% blant ikke-outsourcede
-
-tab innvandrer if outsourcet == 1 & yrk4 == "5122"
-tab innvandrer if outsourcet == 0 & yrk4 == "5122"
-// 26.2% innvandrere blant outsourcede kokker, 34.6% blant ikke-outsourcede.
-
-tab innvandrer if outsourcet == 1 & yrk4 == "5163"
-tab innvandrer if outsourcet == 0 & yrk4 == "5163"
-//10.9% innvandrere blant outsourcede vaktmestere, 13.1% blant ikke-outsourcede
-
-tab innvandrer if outsourcet == 1 & yrk4 == "5164"
-tab innvandrer if outsourcet == 0 & yrk4 == "5164"
-//13.8% innvandrere blant outsourcede vektere, 11.3% blant ikke-outsourcede
-
-tab innvandrer if outsourcet == 1 & yrk4 == "9133"
-tab innvandrer if outsourcet == 0 & yrk4 == "9133"
-//44.3% innvandrere blant outsourcede kjøkkenassistenter, 32.7% blant ikke-outsourcede
-
-tab innvandrer if outsourcet == 1 & yrk4 == "9152"
-tab innvandrer if outsourcet == 0 & yrk4 == "9152"
-//25.2% innvandrere blant outsourcede vakter/dørvakter, 16.5% blant ikke-outsourcede
-
-tab kvinne if outsourcet == 1 & yrk4 == "5122"
-tab kvinne if outsourcet == 0 & yrk4 == "5122"
-tab kvinne if outsourcet == 0 & yrk4 == "5122" & restaurant == 0
-//49.1% kvinner blant outsourcede, 53.1% kvinner blant ikke-outsourcede. 64.6% kvinner blant ikke-outsourcede om man fjerner restaurantbransjen. 
-
-tab kvinne if outsourcet == 1 & yrk4 == "5163"
-tab kvinne if outsourcet == 0 & yrk4 == "5163"
-//3.6% kvinner blant outsourcede vaktmestere, 11% blant ikke-outsourcede
-
-tab kvinne if outsourcet == 1 & yrk4 == "5164"
-tab kvinne if outsourcet == 0 & yrk4 == "5164"
-//26.1% kvinner blant outsourcede vektere, 19.6% blant ikke-outsourcede
-
-tab kvinne if outsourcet == 1 & yrk4 == "9132"
-tab kvinne if outsourcet == 0 & yrk4 == "9132"
-//73% kvinner blant outsourcede renholdere, 83% blant ikke-outsourcede
-
-tab kvinne if outsourcet == 1 & yrk4 == "9133"
-tab kvinne if outsourcet == 0 & yrk4 == "9133" & restaurant == 0
-//Minimale forskjeller
-
-tab kvinne if outsourcet == 1 & yrk4 == "9133"
-tab kvinne if outsourcet == 0 & yrk4 == "9133"
-//11% kvinner blant outsourcede vakter/dørvakter, 39% blant ikke-outsourcede
-
-//Undersøker fordelingen i lønnsdesilene for de ulike yrkesgruppene, ser på matarbeidere først
-tab timelonn_10 if yrk4 == "5122"
-tab timelonn_10 if yrk4 == "5123"
-tab timelonn_10 if yrk4 == "9133"
-//Assistenter (9133) har uproporsjonalt høy andel i de nederste lønnsdesilene, gir mening siden de er ufaglærte. Kokker (5122) har en uproporsjonal liten andel blant de lavtlønte, eks: 7.11% av kokkene er i nederste desil, 37.33 i de fire nederste. Gir mening siden de har flere faglærte.
-
-tab timelonn_10 if yrk4 == "9132"
-//Renholdere har uproporsjonalt få i de nederste og øverste desilene.
-
-tab timelonn_10 if yrk4 == "5164"
-//Vektere har få i de nederste desilene, 41.76% av vekterne er i de to øverste desilene. Logisk mtp. at vektere har mer kvelds- natt- og helgearbeid enn de andre yrkene, pluss risikotillegg
-
-tab timelonn_10 if yrk4 == "5163"
-//Få vaktmestere i de nedre desilene, 33.31% i de to øverste, 48.36% i de tre øverste
-
-tab outsourcet if yrk4 == "5123"
-//0.65% av servitørene er outsourcet, dropper servitører
 
 //Installerer grstyle
 ssc install grstyle, replace
@@ -247,7 +140,7 @@ gen nace1 = substr(nace_bed, 1, 1)
 sort lopenr_person aar
 gen outevent = 0
 replace outevent = 1 if outsourcet[_n-1]==0 & outsourcet==1 & lopenr_person[_n-1]==lopenr_person & aar2[_n-1]==(aar2-1)
-// 21 699 skifter fra ikke-outsourcet i år t-1 til outsourcet i år t
+
 tabulate aar if outevent == 1
 
 
@@ -261,14 +154,11 @@ replace høylonn = 1 if timelonn > 800
 gen normallonn = 0
 replace normallonn = 1 if høylonn == 0 & lavlonn == 0
 
-gen litejobb = 0
-replace litejobb = 1 if timer < 6 | mean_timer < 6
-
 gen myejobb = 0
 replace myejobb = 1 if timer > 50 & mean_timer > 999999999 | mean_timer > 50 & timer > 999999999 
 
 gen normalmengdejobb = 0
-replace normalmengdejobb = 1 if myejobb == 0 & litejobb == 0
+replace normalmengdejobb = 1 if myejobb == 0
 
 //Lager ny personid-variabel som jeg destringer
 gen personidnum = lopenr_person
@@ -324,7 +214,7 @@ esttab, label
 esttab, b(3) se(3) nomtitle label 
 
 //Eksportere til stata 
-esttab using "G:\ISF10362_Tilknytningsformer\Registerstudier\Olav\grafer/regresjon1.tex", replace f /// 
+esttab using "filnavn", replace f /// 
 b(3) se(3) nomtitle label ///
 booktabs alignment(D{.}{.}{-1})
  
