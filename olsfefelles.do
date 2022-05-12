@@ -1,4 +1,4 @@
-cd "G:\ISF10362_Tilknytningsformer\Registerstudier\Olav\grafer"
+cd "mappe"
 
 gen kokk = 0
 replace kokk = 1 if yrk4 == "5122"
